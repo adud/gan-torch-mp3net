@@ -1,0 +1,5 @@
+[TYPECHECK]
+
+# cf https://github.com/pytorch/pytorch/issues/701
+
+generated-members=numpy.*,torch.*
