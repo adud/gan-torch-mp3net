@@ -326,3 +326,24 @@ class PsychoacousticModel():
     def bark2freq(self, bark_band):
         """Empirical Bark scale"""
         return 600. * torch.sinh(bark_band / 6.)
+    
+    def apply_psycho(self, mdct_amplitudes):
+        """Computes all the necessary indicators and add noise to the mdct
+
+        Args:
+            mdct_amplitudes (tensor): mdct amplitudes [batches_n, channels_n, blocks_n, filter_bands_n]
+
+        Returns:
+            tensor : mdct amplitudes with added noise
+        """
+        mdct_amplitudes = mdct_amplitudes.transpose(1,2) #Reshaping to needed shapes
+        mdct_amplitudes = mdct_amplitudes.transpose(2,3)
+        
+        tonality  = self.tonality(mdct_amplitudes)
+        global_masking = self.global_masking_threshold(mdct_amplitudes,tonality)
+        mdct_amp_noise = self.add_noise(mdct_amplitudes,global_masking)
+        
+        mdct_amp_noise = mdct_amp_noise.transpose(2,3) #Reshaping to input shape
+        mdct_amp_noise = mdct_amp_noise.transpose(1,2)
+
+        return mdct_amp_noise
