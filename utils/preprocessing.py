@@ -6,6 +6,9 @@ for preparing audio to go through the discriminator.
 import os
 import librosa
 import soundfile
+from mdct import mdct
+from .window import window_vorbis
+
 
 def make_audio_chunks(file, chunk_duration,
                       path='./',  dest_path='./',
@@ -42,3 +45,17 @@ def split_files(folder, duration, dest_path, rate, make_mono=False):
                           dest_path=dest_path, out_sr=rate,
                           make_mono=make_mono)
     return 0
+
+
+def apply_mdct(data, nfft=256, window=None):
+    """
+    Wrapper function calling mdct.mdct with the appropriate parameters.
+    Defaults are correct values for 5 seconds files.
+    """
+    if window is None:
+        window = window_vorbis(nfft)
+    if len(data.shape) == 2:
+        # if signal is stereo, must be transposed
+        data = data.T
+    out = mdct(data, framelength=nfft, window=window)
+    return out
