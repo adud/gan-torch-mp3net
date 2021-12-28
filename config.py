@@ -21,3 +21,4 @@ SAMPLE_RATE = 22050
 BATCH_SIZE = 16
 FADE_IN = 64  # in samples
 FADE_OUT = 64  # in samples
+TRAIN_PATH = './dataset/'
