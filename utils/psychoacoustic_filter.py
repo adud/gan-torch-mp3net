@@ -336,14 +336,16 @@ class PsychoacousticModel():
         Returns:
             tensor : mdct amplitudes with added noise
         """
+        mdct_amplitudes = mdct_amplitudes[None, :]
         mdct_amplitudes = mdct_amplitudes.transpose(1,2) #Reshaping to needed shapes
-        mdct_amplitudes = mdct_amplitudes.transpose(2,3)
+        #mdct_amplitudes = mdct_amplitudes.transpose(2,3)
         
         tonality  = self.tonality(mdct_amplitudes)
         global_masking = self.global_masking_threshold(mdct_amplitudes,tonality)
         mdct_amp_noise = self.add_noise(mdct_amplitudes,global_masking)
         
-        mdct_amp_noise = mdct_amp_noise.transpose(2,3) #Reshaping to input shape
-        mdct_amp_noise = mdct_amp_noise.transpose(1,2)
+        #mdct_amp_noise = mdct_amp_noise.transpose(2,3) #Reshaping to input shape
+        #mdct_amp_noise = mdct_amp_noise.transpose(1,2)
+        mdct_amp_noise = mdct_amp_noise[0,:]
 
         return mdct_amp_noise

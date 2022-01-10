@@ -7,18 +7,6 @@ import utils.dataset
 import utils.transform
 import os
 
-transforms = torch.nn.Sequential(
-                        torchaudio.transforms.Fade(c.FADE_IN, c.FADE_OUT),
-                        utils.transform.TransposeTransform(),
-                        utils.transform.ZeroPadTransform(c.FFT_SIZE),
-                        utils.transform.MdctTransform(c.FFT_SIZE),
-                        utils.transform.ToTensorTransform()
-                        )
-
-training_data = utils.dataset.MP3NetDataset(c.TRAIN_PATH, transform=transforms)
-
-train_dataloader = DataLoader(training_data, c.BATCH_SIZE, shuffle=True)
-
 
 def train(arch, loss, epoch, dis_bonus, train_dataloader, device, tlog=c.TLOG):
     """trains the generator and the discriminator

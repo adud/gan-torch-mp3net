@@ -20,7 +20,7 @@ class Discriminator_block(nn.Module):
             nn.Conv2d(self.channels[1], self.channels[1], 1, bias=False),
             nn.Conv2d(self.channels[1], self.channels[1], 1, bias=False),
             nn.LeakyReLU(inplace=True),
-            nn.Conv2d(self.channels[1], self.channels[2], (2, 1), stride=(2,1), bias=False),
+            nn.Conv2d(self.channels[1], self.channels[2], (2, 1), stride=(2, 1), bias=False),
             nn.LeakyReLU(inplace=True)
         )
 
@@ -46,18 +46,19 @@ class Discriminator_block(nn.Module):
         return end
 
 class Discriminator(nn.Module):
-    def __init__(self, in_channels, h_dim):
+    def __init__(self, in_channels, h_dim=16):
         super().__init__()
         self.in_channels = in_channels
         self.hidden_dim = h_dim
         self.model = nn.Sequential(
-                        nn.Conv2d(self.in_channels, self.hidden_dim, 1, bias=False),
-                        Discriminator_block((self.hidden_dim, 2*self.hidden_dim, 4*self.hidden_dim)),
-                        Discriminator_block((4 * self.hidden_dim, 4*2 * self.hidden_dim, 4*4 * self.hidden_dim)),
-                        Discriminator_block((4*4 * self.hidden_dim, 4*4*2 * self.hidden_dim, 4*4*2 * self.hidden_dim), std=True),
-                        Discriminator_block((4*4*2 * self.hidden_dim + 1, 4*4*2 * self.hidden_dim, 4*4*2 * self.hidden_dim)),
+                        nn.Conv2d(self.in_channels, 16, 1, bias=False),
+                        Discriminator_block((16, 32, 64)),
+                        Discriminator_block((64, 128, 128)),
+                        Discriminator_block((128, 256, 256)),
+                        Discriminator_block((256, 512, 512), std=True),
+                        Discriminator_block((513, 512, 512)),
                         nn.Flatten(),
-                        nn.Linear(2*4 * 4*4*2 * self.hidden_dim, 1, bias=False),
+                        nn.Linear(512*4, 1, bias=False),
                         nn.Sigmoid()
         )
 

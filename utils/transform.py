@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 from mdct import mdct
 from .window import window_vorbis
+from .psychoacoustic_filter import PsychoacousticModel
 
 class ZeroPadTransform(nn.Module):
     def __init__(self, fft_size):
@@ -19,7 +20,8 @@ class ZeroPadTransform(nn.Module):
         return padded_snd
 
 class MdctTransform(nn.Module):
-    def __init__(self, nfft=256, window=None):
+    def __init__(self, nfft=256, window=None, mono=True):
+        self.mono = mono
         if window is None:
             self.window = window_vorbis(nfft)
         else:
@@ -27,8 +29,12 @@ class MdctTransform(nn.Module):
         self.fft_size = nfft
 
     def __call__(self, snd):
-        return mdct(snd, framelength=self.fft_size,
-                    window=self.window, centered=True)[:, :-1, :]
+        out = mdct(snd, framelength=self.fft_size,
+                   window=self.window, centered=True)
+        if self.mono:
+            out = out[:, :,None]
+        out = out[:, :-1, :]
+        return out
 
 class TransposeTransform(nn.Module):
     def __call__(self, snd):
@@ -36,4 +42,17 @@ class TransposeTransform(nn.Module):
 
 class ToTensorTransform(nn.Module):
     def __call__(self, snd):
-        return torch.from_numpy(snd)
+        return torch.tensor(torch.from_numpy(snd), dtype=torch.float32)
+
+class PsychoAcousticTransform(nn.Module):
+    def __init__(self, psycho_model):
+        self.psycho_model = psycho_model
+
+    def __call__(self, snd):
+        return self.psycho_model.apply_psycho(snd)
+
+class ReshapeTransform(nn.Module):
+    def __call__(self, snd):
+        snd = snd.transpose(0, 2)
+        snd = snd.transpose(1, 2)
+        return snd
