@@ -50,7 +50,7 @@ parser.add_argument("--carbon-tracker", type=bool, dest="CARBONTRACKER",
 parser.add_argument(
     "--ex-path", type=str, dest="EX_PATH",
     default=cfg.EX_PATH,
-    help="path to store examples (will never overwrite, fail instead)"
+    help="path to store outputs (will never overwrite, fail instead)"
 )
 parser.add_argument("--tlog", type=int, dest="TLOG",
                     default=cfg.TLOG,
@@ -61,10 +61,10 @@ c = parser.parse_args()
 transforms = torch.nn.Sequential(
                         torchaudio.transforms.Fade(c.FADE_IN, c.FADE_OUT),
                         utils.transform.TransposeTransform(),
-                        utils.transform.ZeroPadTransform(c.MDCT_SIZE),
-                        utils.transform.MdctTransform(c.MDCT_SIZE, mono=True),
+                        utils.transform.ZeroPadTransform(cfg.MDCT_SIZE),
+                        utils.transform.MdctTransform(cfg.MDCT_SIZE, mono=True),
                         utils.transform.ToTensorTransform(),
-                        utils.transform.PsychoAcousticTransform(PsychoacousticModel(c.SAMPLE_RATE, c.FILTER_BANDS, c.BARK_BANDS)),
+                        utils.transform.PsychoAcousticTransform(PsychoacousticModel(c.SAMPLE_RATE, cfg.FILTER_BANDS, cfg.BARK_BANDS)),
                         utils.transform.ReshapeTransform()
                         )
 
