@@ -43,16 +43,16 @@ class Generator_block(nn.Module):
         return self.concatenated_block(input_concatenated)
 
 class Generator(nn.Module):
-    def __init__(self):
+    def __init__(self, out_channels):
         super(Generator, self).__init__()
-
+        self.out_channels = out_channels
         self.main = nn.Sequential(
             Generator_block(512, 512, 512),
             Generator_block(512, 512, 256),
             Generator_block(256, 256, 128),
             Generator_block(128, 128, 64),
             Generator_block(64, 32, 16),
-            nn.Conv2d(16, 1, (1, 1)),
+            nn.Conv2d(16, self.out_channels, (1, 1)),
             nn.Tanh()
         )
 

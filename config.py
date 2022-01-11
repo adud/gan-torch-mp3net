@@ -8,6 +8,7 @@ MDCT_SIZE = 256
 FILTER_BANDS = 128
 SAMPLE_RATE = 22050
 BARK_BANDS = 64
+NB_CHANNELS = 1
 
 # Model parameters
 
@@ -33,4 +34,4 @@ TRAIN_PATH = './dataset/'
 EX_GEN = 10  # number of examples to generate for log
 EX_PATH = 'examples'
 
-TLOG = 100
+TLOG = 30

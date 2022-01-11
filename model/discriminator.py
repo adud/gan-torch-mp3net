@@ -46,10 +46,10 @@ class Discriminator_block(nn.Module):
         return end
 
 class Discriminator(nn.Module):
-    def __init__(self, in_channels, h_dim=16):
+    def __init__(self, in_channels):
         super().__init__()
         self.in_channels = in_channels
-        self.hidden_dim = h_dim
+        #self.hidden_dim = h_dim
         self.model = nn.Sequential(
                         nn.Conv2d(self.in_channels, 16, 1, bias=False),
                         Discriminator_block((16, 32, 64)),

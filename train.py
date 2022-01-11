@@ -5,7 +5,9 @@ from torch import optim
 import config as c
 import utils.dataset
 import utils.transform
+from utils.psychoacoustic_filter import PsychoacousticModel
 import os
+from carbontracker.tracker import CarbonTracker
 
 
 def train(arch, loss, epoch, dis_bonus, train_dataloader, device, tlog=c.TLOG):
@@ -18,6 +20,14 @@ def train(arch, loss, epoch, dis_bonus, train_dataloader, device, tlog=c.TLOG):
     tlog: frequency of logs (number of batchs before printing)
           a negative value means no log at all
     device: device for computations (should be the same as arch)"""
+    
+    #Psychoacoustic model creation to add noise to generated mdct
+    model_psych = PsychoacousticModel(c.SAMPLE_RATE, c.FILTER_BANDS, c.BARK_BANDS)
+    
+    #Open file to save losses on the fly
+    log_loss = open(os.join(c.EX_PATH, "losses"),mode = 'w')
+    log_loss.write('Epoch, batch, Loss Generator, Loss Discriminator \n')
+    
     gen, dis = arch
     dis_opt = optim.Adam(dis.parameters(), lr=c.LR, betas=(c.B1, c.B2))
     gen_opt = optim.Adam(gen.parameters(), lr=c.LR, betas=(c.B1, c.B2))
@@ -40,7 +50,7 @@ def train(arch, loss, epoch, dis_bonus, train_dataloader, device, tlog=c.TLOG):
                 lat_vect = torch.randn(c.BATCH_SIZE, c.LATENT_DIM,
                                        device=device)
                 with torch.no_grad():
-                    fake = gen(lat_vect)
+                    fake = model_psych.apply_psycho(gen(lat_vect))
 
                 real = data.to(device)
 
@@ -54,7 +64,7 @@ def train(arch, loss, epoch, dis_bonus, train_dataloader, device, tlog=c.TLOG):
 
             # train the generator
             lat_vect = torch.randn(c.BATCH_SIZE, c.LATENT_DIM, device=device)
-            fake = gen(lat_vect)
+            fake = model_psych.apply_psycho(gen(lat_vect))
             with torch.no_grad():
                 guess = dis(fake)
 
@@ -65,7 +75,23 @@ def train(arch, loss, epoch, dis_bonus, train_dataloader, device, tlog=c.TLOG):
 
             if not i % tlog:
                 print(f"\tbatch {i}/{c.BATCH_SIZE}: {gen_loss}, {dis_loss}")
+                log_loss.write(f"{ep}, {i}, {gen_loss}, {dis_loss}")
                 with torch.no_grad():
                     out = gen(fix_lat)
                     with open(os.join(c.EX_PATH, str(ep), str(i))) as f:
                         torch.save(out, f)
+        
+        #Save the model parameters every 10 epochs
+        if ep%10 == 0:
+            with open(os.join(c.EX_PATH, "model_parameters",f"generator_{ep}")) as f:
+                torch.save(gen.state_dict(),f)
+            with open(os.join(c.EX_PATH, "model_parameters",f"discriminator_{ep}")) as f:
+                torch.save(dis.state_dict(),f)
+            print("Model parameters saved")
+            
+    log_loss.close()
+            
+    
+        
+                        
+                        

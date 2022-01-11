@@ -9,6 +9,7 @@ from utils.psychoacoustic_filter import PsychoacousticModel
 import utils.dataset
 import utils.transform
 import config as c
+from carbontracker.tracker import CarbonTracker
 
 
 parser = ArgumentParser()
@@ -70,14 +71,18 @@ train_dataloader = DataLoader(training_data, c.BATCH_SIZE, shuffle=True)
 
 
 device = torch.device(c.DEVICE)
-dis = Discriminator(in_channels=1, h_dim=16)
-gen = Generator()
+gen = Generator(out_channels=c.NB_CHANNELS)
+dis = Discriminator(in_channels=c.NB_CHANNELS)
+
 
 print("")
 loss = torch.nn.BCELoss()
 
 print("Begin training...")
 
+tracker = CarbonTracker(epochs=c.EPOCH)
 
-#train((gen, dis), loss=loss, epoch=c.EPOCH, dis_bonus=c.DIS_BONUS,
-#      train_dataloader=train_dataloader, device=device, tlog=c.TLOG)
+train((gen, dis), loss=loss, epoch=c.EPOCH, dis_bonus=c.DIS_BONUS,
+      train_dataloader=train_dataloader, device=device, tlog=c.TLOG)
+
+print("End of training")
