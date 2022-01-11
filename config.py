@@ -24,7 +24,7 @@ B2 = 0.9   # beta2
 
 # Training parameters
 
-DIS_BONUS = 1
+GEN_BONUS = 1
 BATCH_SIZE = 16
 EPOCH = 10
 FADE_IN = 64  # in samples
@@ -32,7 +32,7 @@ FADE_OUT = 64  # in samples
 TRAIN_PATH = './dataset/'
 
 EX_GEN = 10  # number of examples to generate for log
-EX_PATH = 'examples'
+EX_PATH = 'training_output'
 
 TLOG = 30
 

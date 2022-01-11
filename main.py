@@ -26,9 +26,9 @@ parser.add_argument("--epoch", type=int, dest="EPOCH",
 parser.add_argument("--learning-rate", type=float, dest="LR",
                     default=c.LR,
                     help="learning rate of the Adam optimizer")
-parser.add_argument("--dis-bonus", type=int, dest="DIS_BONUS",
-                    default=c.DIS_BONUS,
-                    help="number of bonus rounds for training discriminator")
+parser.add_argument("--gen-bonus", type=int, dest="GEN_BONUS",
+                    default=c.GEN_BONUS,
+                    help="number of rounds of generator training for one round of discriminator training")
 parser.add_argument("--batch-size", type=int, dest="BATCH_SIZE",
                     default=c.BATCH_SIZE,
                     help="size of a batch training")
@@ -52,7 +52,6 @@ parser.add_argument(
     default=c.EX_PATH,
     help="path to store examples (will never overwrite, fail instead)"
 )
-
 parser.add_argument("--tlog", type=int, dest="TLOG",
                     default=c.TLOG,
                     help="time between two logs (in number of batchs)")
@@ -86,7 +85,7 @@ print("Begin training...")
 if c.CARBONTRACKER:
     c.CARBONTRACKER = CarbonTracker(epochs=c.EPOCH)
 
-train((gen, dis), loss=loss, epoch=c.EPOCH, dis_bonus=c.DIS_BONUS,
+train((gen, dis), loss=loss, epoch=c.EPOCH, gen_bonus=c.GEN_BONUS,
       train_dataloader=train_dataloader, device=device, tlog=c.TLOG)
 
 print("End of training")

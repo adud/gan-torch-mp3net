@@ -10,7 +10,7 @@ import os
 from carbontracker.tracker import CarbonTracker
 
 
-def train(arch, loss, epoch, dis_bonus, train_dataloader, device, tlog=c.TLOG):
+def train(arch, loss, epoch, gen_bonus, train_dataloader, device, tlog=c.TLOG):
     """trains the generator and the discriminator
     arch: a pair (generator, discriminator) of a GAN architecture
     loss: a loss function
@@ -49,7 +49,7 @@ def train(arch, loss, epoch, dis_bonus, train_dataloader, device, tlog=c.TLOG):
             os.makedirs(os.join(c.EX_PATH, str(ep)))
         for i, data in enumerate(train_dataloader):
             
-            for _ in range(dis_bonus):
+            for _ in range(gen_bonus):
                 # train the generator
                 lat_vect = torch.randn(c.BATCH_SIZE, c.LATENT_DIM, device=device)
                 fake = model_psych.apply_psycho(gen(lat_vect))
