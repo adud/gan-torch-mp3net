@@ -44,6 +44,9 @@ parser.add_argument("--train-path", type=str, dest="TRAIN_PATH",
 parser.add_argument("--ex-gen", type=int, dest="EX_GEN",
                     default=c.EX_GEN,
                     help="number of examples to generate when logging")
+parser.add_argument("--carbon-tracker", type=bool, dest="CARBONTRACKER",
+                    default=c.CARBONTRACKER,
+                    help="Activate carbon tracker or not")
 parser.add_argument(
     "--ex-path", type=str, dest="EX_PATH",
     default=c.EX_PATH,
@@ -80,7 +83,8 @@ loss = torch.nn.BCELoss()
 
 print("Begin training...")
 
-tracker = CarbonTracker(epochs=c.EPOCH)
+if c.CARBONTRACKER:
+    c.CARBONTRACKER = CarbonTracker(epochs=c.EPOCH)
 
 train((gen, dis), loss=loss, epoch=c.EPOCH, dis_bonus=c.DIS_BONUS,
       train_dataloader=train_dataloader, device=device, tlog=c.TLOG)

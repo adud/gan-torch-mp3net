@@ -35,3 +35,5 @@ EX_GEN = 10  # number of examples to generate for log
 EX_PATH = 'examples'
 
 TLOG = 30
+
+CARBONTRACKER = False

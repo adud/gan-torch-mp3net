@@ -21,6 +21,9 @@ def train(arch, loss, epoch, dis_bonus, train_dataloader, device, tlog=c.TLOG):
           a negative value means no log at all
     device: device for computations (should be the same as arch)"""
     
+    if c.CARBONTRACKER:
+        c.CARBONTRACKER.epoch_start()
+    
     #Psychoacoustic model creation to add noise to generated mdct
     model_psych = PsychoacousticModel(c.SAMPLE_RATE, c.FILTER_BANDS, c.BARK_BANDS)
     
@@ -45,33 +48,31 @@ def train(arch, loss, epoch, dis_bonus, train_dataloader, device, tlog=c.TLOG):
             print(f"## EPOCH {epoch} ##")
             os.makedirs(os.join(c.EX_PATH, str(ep)))
         for i, data in enumerate(train_dataloader):
-            # train the discriminator
+            
             for _ in range(dis_bonus):
-                lat_vect = torch.randn(c.BATCH_SIZE, c.LATENT_DIM,
-                                       device=device)
+                # train the generator
+                lat_vect = torch.randn(c.BATCH_SIZE, c.LATENT_DIM, device=device)
+                fake = model_psych.apply_psycho(gen(lat_vect))
                 with torch.no_grad():
-                    fake = model_psych.apply_psycho(gen(lat_vect))
+                    guess = dis(fake)
 
-                real = data.to(device)
-
-                dfake_loss = loss(dis(fake), fake_lab)
-                dreal_loss = loss(dis(real), real_lab)
-                dis_loss = (dfake_loss + dreal_loss) / 2
-
-                dis.zero_grad()
-                dis_loss.backward()
-                dis_opt.step()
-
-            # train the generator
-            lat_vect = torch.randn(c.BATCH_SIZE, c.LATENT_DIM, device=device)
-            fake = model_psych.apply_psycho(gen(lat_vect))
+                gen_loss = loss(guess, real_lab)
+                gen.zero_grad()
+                gen_loss.backward
+                gen_opt.step()
+                
+            # train the discriminator    
+            lat_vect = torch.randn(c.BATCH_SIZE, c.LATENT_DIM,
+                                   device=device)
             with torch.no_grad():
-                guess = dis(fake)
-
-            gen_loss = loss(guess, real_lab)
-            gen.zero_grad()
-            gen_loss.backward
-            gen_opt.step()
+                fake = model_psych.apply_psycho(gen(lat_vect))
+            real = data.to(device)
+            dfake_loss = loss(dis(fake), fake_lab)
+            dreal_loss = loss(dis(real), real_lab)
+            dis_loss = (dfake_loss + dreal_loss) / 2
+            dis.zero_grad()
+            dis_loss.backward()
+            dis_opt.step()
 
             if not i % tlog:
                 print(f"\tbatch {i}/{c.BATCH_SIZE}: {gen_loss}, {dis_loss}")
@@ -90,6 +91,9 @@ def train(arch, loss, epoch, dis_bonus, train_dataloader, device, tlog=c.TLOG):
             print("Model parameters saved")
             
     log_loss.close()
+    
+    if c.CARBONTRACKER:
+        c.CARBONTRACKER.epoch_end()
             
     
         
