@@ -10,6 +10,7 @@ import utils.dataset
 import utils.transform
 import config as cfg
 from carbontracker.tracker import CarbonTracker
+from carbontracker import parser
 
 
 parser = ArgumentParser()
@@ -125,3 +126,4 @@ train((gen, dis), loss=loss, epoch=c.EPOCH, gen_bonus=c.GEN_BONUS,
       train_dataloader=train_dataloader, device=device, c=c)
 
 print("End of training")
+parser.print_aggregate(log_dir="./logs/")
