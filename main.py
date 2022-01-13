@@ -2,7 +2,7 @@ import torch
 import torchaudio
 from argparse import ArgumentParser
 from model.discriminator import Discriminator
-from model.generator import Generator
+from model.generator import Generator, Generator_block
 from train import train
 from torch.utils.data import DataLoader
 from utils.psychoacoustic_filter import PsychoacousticModel
@@ -28,7 +28,7 @@ parser.add_argument("--learning-rate", type=float, dest="LR",
                     help="learning rate of the Adam optimizer")
 parser.add_argument("--gen-bonus", type=int, dest="GEN_BONUS",
                     default=cfg.GEN_BONUS,
-                    help="number of rounds of generator training for one round of discriminator training")
+                    help="Number of bonus rounds for generator")
 parser.add_argument("--batch-size", type=int, dest="BATCH_SIZE",
                     default=cfg.BATCH_SIZE,
                     help="size of a batch training")
@@ -57,6 +57,22 @@ parser.add_argument("--tlog", type=int, dest="TLOG",
                     help="time between two logs (in number of batchs)")
 
 c = parser.parse_args()
+c.FILTER_BANDS = cfg.FILTER_BANDS
+c.BARK_BANDS = cfg.BARK_BANDS
+c.NB_CHANNELS = cfg.NB_CHANNELS
+c.B1 = cfg.B1
+c.B2 = cfg.B2
+
+# custom weights initialization called on netG and netD
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
+
+device = torch.device(cfg.DEVICE)
 
 transforms = torch.nn.Sequential(
                         torchaudio.transforms.Fade(c.FADE_IN, c.FADE_OUT),
@@ -64,19 +80,23 @@ transforms = torch.nn.Sequential(
                         utils.transform.ZeroPadTransform(cfg.MDCT_SIZE),
                         utils.transform.MdctTransform(cfg.MDCT_SIZE, mono=True),
                         utils.transform.ToTensorTransform(),
-                        utils.transform.PsychoAcousticTransform(PsychoacousticModel(c.SAMPLE_RATE, cfg.FILTER_BANDS, cfg.BARK_BANDS)),
-                        utils.transform.ReshapeTransform()
+                        utils.transform.ToDeviceTransform(device),
+                        utils.transform.PsychoAcousticTransform(PsychoacousticModel(c.SAMPLE_RATE, device, cfg.FILTER_BANDS, cfg.BARK_BANDS))
+                        #utils.transform.ReshapeTransform()
                         )
 
 training_data = utils.dataset.MP3NetDataset(c.TRAIN_PATH, num_channels=1, transform=transforms)
 
-train_dataloader = DataLoader(training_data, c.BATCH_SIZE, shuffle=True)
+train_dataloader = DataLoader(training_data, c.BATCH_SIZE, shuffle=True, drop_last=True)
 
 
-device = torch.device(c.DEVICE)
-gen = Generator(out_channels=c.NB_CHANNELS)
-dis = Discriminator(in_channels=c.NB_CHANNELS)
 
+gen = Generator(out_channels=cfg.NB_CHANNELS)
+dis = Discriminator(in_channels=cfg.NB_CHANNELS)
+#weights_init(gen)
+#weights_init(dis)
+gen.to(device)
+dis.to(device)
 
 print("")
 loss = torch.nn.BCELoss()
@@ -86,7 +106,16 @@ print("Begin training...")
 if c.CARBONTRACKER:
     c.CARBONTRACKER = CarbonTracker(epochs=c.EPOCH)
 
+
+#lat_vect = torch.randn(c.BATCH_SIZE, c.NB_CHANNELS, 1024, 128,
+#                                   device=device)
+
+#lat_vect = torch.randn(c.BATCH_SIZE, c.LATENT_DIM, c.NB_CHANNELS, 4, device=device)
+
+
+#print(gen(lat_vect))
+
 train((gen, dis), loss=loss, epoch=c.EPOCH, gen_bonus=c.GEN_BONUS,
-      train_dataloader=train_dataloader, device=device, tlog=c.TLOG)
+      train_dataloader=train_dataloader, device=device, c=c)
 
 print("End of training")

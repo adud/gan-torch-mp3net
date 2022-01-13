@@ -52,22 +52,24 @@ class Discriminator(nn.Module):
         #self.hidden_dim = h_dim
         self.model = nn.Sequential(
                         nn.Conv2d(self.in_channels, 16, 1, bias=False),
+                        nn.BatchNorm2d(16),
                         Discriminator_block((16, 32, 64)),
+                        nn.BatchNorm2d(64),
                         Discriminator_block((64, 128, 128)),
+                        nn.BatchNorm2d(128),
                         Discriminator_block((128, 256, 256)),
+                        nn.BatchNorm2d(256),
                         Discriminator_block((256, 512, 512), std=True),
                         Discriminator_block((513, 512, 512)),
+                        nn.BatchNorm2d(512),
                         nn.Flatten(),
-                        nn.Linear(512*4, 1, bias=False),
+                        nn.Linear(512*4, 1, bias=True),
+                        nn.BatchNorm1d(1),
                         nn.Sigmoid()
         )
-
     def forward(self, inputs):
         return self.model(inputs)
 
-    def filtering(self, inputs):
-        outputs = inputs  # mettre les filtres psychoacoustiques
-        return outputs
 
 
 

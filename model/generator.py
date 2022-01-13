@@ -48,9 +48,13 @@ class Generator(nn.Module):
         self.out_channels = out_channels
         self.main = nn.Sequential(
             Generator_block(512, 512, 512),
+            nn.BatchNorm2d(512),
             Generator_block(512, 512, 256),
+            nn.BatchNorm2d(256),
             Generator_block(256, 256, 128),
+            nn.BatchNorm2d(128),
             Generator_block(128, 128, 64),
+            nn.BatchNorm2d(64),
             Generator_block(64, 32, 16),
             nn.Conv2d(16, self.out_channels, (1, 1)),
             nn.Tanh()
