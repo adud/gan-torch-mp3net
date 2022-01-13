@@ -42,17 +42,24 @@ class TransposeTransform(nn.Module):
 
 class ToTensorTransform(nn.Module):
     def __call__(self, snd):
-        return torch.tensor(torch.from_numpy(snd), dtype=torch.float32)
+        tensor = torch.tensor(torch.from_numpy(snd), dtype=torch.float32)
+        return tensor.transpose(0,2)
 
 class PsychoAcousticTransform(nn.Module):
     def __init__(self, psycho_model):
         self.psycho_model = psycho_model
 
     def __call__(self, snd):
-        return self.psycho_model.apply_psycho(snd)
+        return self.psycho_model.apply_psycho_single(snd)
 
 class ReshapeTransform(nn.Module):
     def __call__(self, snd):
         snd = snd.transpose(0, 2)
         snd = snd.transpose(1, 2)
         return snd
+
+class ToDeviceTransform(nn.Module):
+    def __init__(self, device):
+        self.device = device
+    def __call__(self, snd):
+        return snd.to(self.device)

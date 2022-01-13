@@ -55,6 +55,9 @@ parser.add_argument(
 parser.add_argument("--tlog", type=int, dest="TLOG",
                     default=cfg.TLOG,
                     help="time between two logs (in number of batchs)")
+parser.add_argument("--subset", type=int, dest="SUBSET",
+                    default=None,
+                    help="train only on subset of the dataset according to the given size")
 
 c = parser.parse_args()
 c.FILTER_BANDS = cfg.FILTER_BANDS
@@ -87,6 +90,11 @@ transforms = torch.nn.Sequential(
 
 training_data = utils.dataset.MP3NetDataset(c.TRAIN_PATH, num_channels=1, transform=transforms)
 
+
+if c.SUBSET is not None:
+    subset_ind = torch.randint(0, len(training_data), (1, c.SUBSET))
+    training_data = torch.utils.dataset.Subset(training_data, subset_ind)
+
 train_dataloader = DataLoader(training_data, c.BATCH_SIZE, shuffle=True, drop_last=True)
 
 
@@ -112,8 +120,6 @@ if c.CARBONTRACKER:
 
 #lat_vect = torch.randn(c.BATCH_SIZE, c.LATENT_DIM, c.NB_CHANNELS, 4, device=device)
 
-
-#print(gen(lat_vect))
 
 train((gen, dis), loss=loss, epoch=c.EPOCH, gen_bonus=c.GEN_BONUS,
       train_dataloader=train_dataloader, device=device, c=c)

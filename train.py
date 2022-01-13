@@ -50,40 +50,63 @@ def train(arch, loss, epoch, gen_bonus, train_dataloader, device, c):
 
     for ep in range(epoch):
         if tlog >= 0:
-            print(f"## EPOCH {epoch} ##")
+            print(f"## EPOCH {ep} ##")
             os.makedirs(os.path.join(c.EX_PATH, str(ep)))
 
         for i, data in enumerate(train_dataloader):
             
+            #Update discriminator network
+            dis.zero_grad()
 
-            # train both   
-            lat_vect = torch.randn(c.BATCH_SIZE, c.LATENT_DIM, c.NB_CHANNELS, 4,
+            #Output real samples
+            real = data.to(device)
+            dreal = dis(real)
+            dreal_loss = loss(dreal, real_lab)
+            dreal_loss.backward()
+
+            #Train with fake
+            noise = torch.randn(c.BATCH_SIZE, c.LATENT_DIM, c.NB_CHANNELS, 4,
                                    device=device)
             
-            #fake = model_psych.apply_psycho_batch(gen(lat_vect))
-            fake = gen(lat_vect)
+            fake = model_psych.apply_psycho_batch(gen(noise))
+            dfake = dis(fake)
+            
+            dfake_loss = loss(dfake, fake_lab)
+            dfake_loss.backward(retain_graph = True)
+            errD = dreal_loss + dfake_loss
+            dis_opt.step()
 
-            real = data.to(device)
 
-            #print(real)
+            #Update Generator network
+            gen.zero_grad()
+            dfake = dis(fake)
+            dfake_loss = loss(dfake, real_lab)
+
+            dfake_loss.backward()
+            gen_opt.step()
+
+            """
             dis_opt.zero_grad()
-            dfake_loss = loss(dis(fake.detach()), fake_lab)
+            #with torch.no_grad():
+            #    dfake = dis(fake)
+            dfake = dis(fake)
+            dfake_loss = loss(dfake, fake_lab)
             dreal_loss = loss(dis(real), real_lab)
             dis_loss = (dfake_loss + dreal_loss) / 2
             #print(dis(fake.detach()))
             #print(dis(real))
             #print(dis_loss)
 
-            dis_loss.backward()
+            dis_loss.backward(retain_graph = True)
             dis_opt.step()
             
             
             gen_opt.zero_grad()
-            lat_vect2 = torch.randn(c.BATCH_SIZE, c.LATENT_DIM, c.NB_CHANNELS, 4,
-                                   device=device)
+            #lat_vect2 = torch.randn(c.BATCH_SIZE, c.LATENT_DIM, c.NB_CHANNELS, 4,
+            #                       device=device)
             
-            fake2 = model_psych.apply_psycho_batch(gen(lat_vect2))
-            gen_loss = loss(dis(fake2),real_lab)
+            #fake2 = model_psych.apply_psycho_batch(gen(lat_vect2))
+            gen_loss = loss(dfake,real_lab)
             #print(gen_loss)
             
             gen_loss.backward()
@@ -104,13 +127,14 @@ def train(arch, loss, epoch, gen_bonus, train_dataloader, device, c):
                 gen_opt.zero_grad()
                 gen_loss.backward()
                 gen_opt.step()
+            """
                 
 
 
             if not i % tlog:
-                print(f"\tbatch {i}: {gen_loss}, {dis_loss}")
+                print(f"\tbatch {i}: {dfake_loss}, {errD}")
                 with open(os.path.join(c.EX_PATH, "losses"),mode = 'a') as f:
-                    f.write(f"{ep}, {i}, {gen_loss}, {dis_loss}\n")
+                    f.write(f"{ep}, {i}, {dfake_loss}, {errD}\n")
                 with torch.no_grad():
                     out = model_psych.apply_psycho_batch(gen(fix_lat))
                     torch.save(out, os.path.join(c.EX_PATH, str(ep), str(i)))

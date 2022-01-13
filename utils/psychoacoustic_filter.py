@@ -12,7 +12,7 @@ See also chapter 9 in "Digital Audio Signal Processing" by Udo Zolzer
 
 
 class PsychoacousticModel():
-    def __init__(self, sample_rate, filter_bands_n = 1024, bark_bands_n = 64,
+    def __init__(self, sample_rate, device, filter_bands_n = 1024, bark_bands_n = 64,
                 alpha = 0.6, compute_dtype = torch.float32):
         
         """Computes required initialization matrices.
@@ -39,19 +39,20 @@ class PsychoacousticModel():
         self.sample_rate = sample_rate
         self.bark_bands_n = bark_bands_n
         self.filter_bands_n = filter_bands_n
+        self.device = device
         
         #Compute data type
         self.compute_dtype = compute_dtype
         
         #Definition of dB range
-        self._dB_MAX = torch.tensor(120,dtype = self.compute_dtype)
+        self._dB_MAX = torch.tensor(120,dtype = self.compute_dtype, device=self.device)
         
-        self._INTENSITY_EPS = torch.tensor(1e-14,dtype = self.compute_dtype)
+        self._INTENSITY_EPS = torch.tensor(1e-14,dtype = self.compute_dtype, device=self.device)
         self._dB_MIN = self.amplitude_to_dB(self._INTENSITY_EPS)
         
         # pre-compute some values & matrices with higher precision, then down-cast to compute_dtype
         precompute_dtype = torch.float64
-        self.max_frequency = torch.tensor(self.sample_rate, dtype=precompute_dtype) / 2.0  # Nyquist frequency: maximum frequency given a sample rate
+        self.max_frequency = torch.tensor(self.sample_rate, dtype=precompute_dtype, device=self.device) / 2.0  # Nyquist frequency: maximum frequency given a sample rate
         self.max_bark = self.freq2bark(self.max_frequency)
         self.bark_band_width = self.max_bark / self.bark_bands_n       
      
@@ -59,7 +60,7 @@ class PsychoacousticModel():
         self.W = W.type(compute_dtype)
         self.W_inv = W_inv.type(compute_dtype)
         self.quiet_threshold_intensity = self._quiet_threshold_intensity_in_bark(precompute_dtype=precompute_dtype).type(compute_dtype)
-        self.spreading_matrix = self._spreading_matrix_in_bark().type(compute_dtype)   
+        self.spreading_matrix = self._spreading_matrix_in_bark().type(compute_dtype).to(self.device)   
         
         
     def amplitude_to_dB(self,mdct_amplitude):
@@ -171,9 +172,9 @@ class PsychoacousticModel():
         # in einsum, we tf.squeeze() axis=2 (index i) and take outer product with tf.linspace()       
         offset = (1. - drown) * (torch.einsum('nbic,j->nbjc',
                                         tonality_per_block,
-                                        torch.linspace(torch.tensor(0.0, dtype=self.compute_dtype),
+                                        torch.linspace(torch.tensor(0.0, dtype=self.compute_dtype, device=self.device),
                                                    self.max_bark,
-                                                   self.bark_bands_n))
+                                                   self.bark_bands_n, device=self.device))
                                 + 9. * tonality_per_block
                                 + 5.5)
 
@@ -226,7 +227,7 @@ class PsychoacousticModel():
                      returned amplitudes are all positive
         """
         # Threshold in quiet:
-        bark_bands_mid_bark = self.bark_band_width * torch.arange(self.bark_bands_n, dtype=precompute_dtype) + self.bark_band_width / 2.
+        bark_bands_mid_bark = self.bark_band_width * torch.arange(self.bark_bands_n, dtype=precompute_dtype, device=self.device) + self.bark_band_width / 2.
         bark_bands_mid_kHz = self.bark2freq(bark_bands_mid_bark) / 1000.
         # Threshold of quiet expressed as amplitude in dB-scale for each Bark bands
         # see (9.3) in "Digital Audio Signal Processing" by Udo Zolzer
@@ -275,8 +276,8 @@ class PsychoacousticModel():
           overlap = bark_high_in_Hz_clipped - bark_low_in_Hz_clipped
           return overlap / filter_band_width, overlap / (bark_high_in_Hz - bark_low_in_Hz)
 
-        bark_columns = torch.arange(self.bark_bands_n, dtype=precompute_dtype).view(1, -1)
-        freq_rows = torch.arange(self.filter_bands_n, dtype=precompute_dtype).view(-1, 1)
+        bark_columns = torch.arange(self.bark_bands_n, dtype=precompute_dtype, device=self.device).view(1, -1)
+        freq_rows = torch.arange(self.filter_bands_n, dtype=precompute_dtype, device=self.device).view(-1, 1)
         W, W_inv_transpose = freq_interval_overlap(freq_rows, bark_columns)
 
         return W, torch.transpose(W_inv_transpose, 0, 1)
@@ -327,8 +328,32 @@ class PsychoacousticModel():
         """Empirical Bark scale"""
         return 600. * torch.sinh(bark_band / 6.)
     
-    def apply_psycho(self, mdct_amplitudes):
-        """Computes all the necessary indicators and add noise to the mdct
+    def apply_psycho_single(self, mdct_amplitudes):
+        """Computes all the necessary indicators and add noise to a single mdct 
+
+        Args:
+            mdct_amplitudes (tensor): mdct amplitudes [channels_n, blocks_n, filter_bands_n]
+
+        Returns:
+            tensor : mdct amplitudes with added noise
+        """
+        mdct_amplitudes = mdct_amplitudes[None, :]
+        mdct_amplitudes = mdct_amplitudes.transpose(1,2) #Reshaping to needed shapes
+        mdct_amplitudes = mdct_amplitudes.transpose(2,3)
+        
+        tonality  = self.tonality(mdct_amplitudes)
+        global_masking = self.global_masking_threshold(mdct_amplitudes,tonality)
+        mdct_amp_noise = self.add_noise(mdct_amplitudes,global_masking)
+        
+        mdct_amp_noise = mdct_amp_noise.transpose(2,3) #Reshaping to input shape
+        mdct_amp_noise = mdct_amp_noise.transpose(1,2)
+
+        mdct_amp_noise = mdct_amp_noise[0]
+
+        return mdct_amp_noise
+    
+    def apply_psycho_batch(self, mdct_amplitudes):
+        """Computes all the necessary indicators and add noise to the mdct in batch
 
         Args:
             mdct_amplitudes (tensor): mdct amplitudes [batches_n, channels_n, blocks_n, filter_bands_n]
@@ -336,16 +361,15 @@ class PsychoacousticModel():
         Returns:
             tensor : mdct amplitudes with added noise
         """
-        mdct_amplitudes = mdct_amplitudes[None, :]
+        #mdct_amplitudes = mdct_amplitudes[None, :]
         mdct_amplitudes = mdct_amplitudes.transpose(1,2) #Reshaping to needed shapes
-        #mdct_amplitudes = mdct_amplitudes.transpose(2,3)
+        mdct_amplitudes = mdct_amplitudes.transpose(2,3)
         
         tonality  = self.tonality(mdct_amplitudes)
         global_masking = self.global_masking_threshold(mdct_amplitudes,tonality)
         mdct_amp_noise = self.add_noise(mdct_amplitudes,global_masking)
         
-        #mdct_amp_noise = mdct_amp_noise.transpose(2,3) #Reshaping to input shape
-        #mdct_amp_noise = mdct_amp_noise.transpose(1,2)
-        mdct_amp_noise = mdct_amp_noise[0,:]
+        mdct_amp_noise = mdct_amp_noise.transpose(2,3) #Reshaping to input shape
+        mdct_amp_noise = mdct_amp_noise.transpose(1,2)
 
         return mdct_amp_noise

@@ -13,7 +13,7 @@ NB_CHANNELS = 1
 # Model parameters
 
 LATENT_DIM = 512  # dimensions of the latent space (also Generator input size)
-DEVICE = 'cpu'
+DEVICE = 'cuda'
 
 # Adam optimizer parameters (see p6)
 
