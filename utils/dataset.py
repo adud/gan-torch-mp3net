@@ -4,12 +4,14 @@ https://pytorch.org/tutorials/beginner/basics/data_tutorial.html
 """
 
 import os
-import torch
 import torchaudio
 from torch.utils.data import Dataset
 
+
 class MP3NetDataset(Dataset):
-    def __init__(self, snd_dir, transform=None, target_transform=None, num_channels=1):
+    """A dataset to load batches of sound files"""
+    def __init__(self, snd_dir, transform=None, target_transform=None,
+                 num_channels=1):
         self.snd_dir = snd_dir
         self.transform = transform
         self.target_transform = target_transform

@@ -6,9 +6,9 @@ for preparing audio to go through the discriminator.
 import os
 import librosa
 import soundfile
+import numpy as np
 from mdct import mdct
 from window import window_vorbis
-import numpy as np
 
 
 def make_audio_chunks(file, chunk_duration,
@@ -30,9 +30,9 @@ def make_audio_chunks(file, chunk_duration,
     for cnt in range(data_samples//chunk_samples):
         tmp = data[:, cnt*chunk_samples:(cnt+1)*chunk_samples]
         chunk_name = dest_path + file[:-4]+f"_{cnt}.wav"
-        #chunk_name = chunk_name.replace(' ', '')
-        #chunk_name = chunk_name.replace('-', '')
-        #chunk_name = chunk_name.replace('_', '')
+        # chunk_name = chunk_name.replace(' ', '')
+        # chunk_name = chunk_name.replace('-', '')
+        # chunk_name = chunk_name.replace('_', '')
         # tmp needs to be transposed to have the shape expected by sf.write
         soundfile.write(chunk_name, tmp.T, samplerate=rate)
     return 0
