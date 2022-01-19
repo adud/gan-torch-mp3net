@@ -1,0 +1,18 @@
+[GENERAL]
+
+fail-under=9
+
+[TYPECHECK]
+
+# cf https://github.com/pytorch/pytorch/issues/701
+
+generated-members=numpy.*,torch.*
+
+[DESIGN]
+
+max-args=8
+max-attributes=20
+
+[BASIC]
+good-names=z,W,_INTENSITY_EPS
+good-names-rgxs=W_*,.*dB.*,.*Hz.*
